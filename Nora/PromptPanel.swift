@@ -87,18 +87,20 @@ final class PromptPanelController {
 struct PromptPanelView: View {
     private let models = [
         GemmaModel(id: "gemma4", displayName: "Gemma 4"),
-        GemmaModel(id: "gemma4:2b", displayName: "Gemma 4 2B"),
-        GemmaModel(id: "gemma4:12b", displayName: "Gemma 4 12B"),
-        GemmaModel(id: "gemma4:26b", displayName: "Gemma 4 26B"),
-        GemmaModel(id: "gemma4:31b", displayName: "Gemma 4 31B")
+        GemmaModel(id: "gemma4:2b", displayName: "2B"),
+        GemmaModel(id: "gemma4:12b", displayName: "12B"),
+        GemmaModel(id: "gemma4:26b", displayName: "26B"),
+        GemmaModel(id: "gemma4:31b", displayName: "31B")
     ]
     private let client = GemmaClient()
     private let onHeightChange: (CGFloat) -> Void
 
     @State private var prompt = ""
+    @State private var isPromptEmpty = true
     @State private var selectedModel = GemmaModel(id: "gemma4", displayName: "Gemma 4")
     @State private var editorHeight: CGFloat = 24
     @State private var focusRequest = 0
+    @State private var isModelPickerPresented = false
     @State private var isSending = false
     @State private var activeTask: Task<Void, Never>?
     @State private var inFlightPrompt = ""
@@ -145,7 +147,7 @@ struct PromptPanelView: View {
             }
 
             ZStack(alignment: .topLeading) {
-                if prompt.isEmpty {
+                if isPromptEmpty {
                     Text("質問してみましょう")
                         .font(.system(size: 14))
                         .foregroundStyle(.secondary)
@@ -154,6 +156,7 @@ struct PromptPanelView: View {
 
                 GrowingPromptTextView(
                     text: $prompt,
+                    isEmpty: $isPromptEmpty,
                     height: $editorHeight,
                     focusRequest: focusRequest,
                     maxHeight: 140,
@@ -163,25 +166,17 @@ struct PromptPanelView: View {
             .frame(height: editorHeight, alignment: .topLeading)
 
             HStack(spacing: 10) {
-                Menu {
-                    ForEach(models) { model in
-                        Button(model.displayName) {
-                            selectedModel = model
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(selectedModel.displayName)
-                            .font(.system(size: 13, weight: .semibold))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .semibold))
-                    }
-                    .foregroundStyle(.primary)
-                    .frame(minWidth: 96, alignment: .leading)
+                ModelPickerButton(
+                    selectedModel: selectedModel,
+                    isPresented: $isModelPickerPresented
+                )
+                .popover(isPresented: $isModelPickerPresented, arrowEdge: .bottom) {
+                    ModelPickerPopover(
+                        models: models,
+                        selectedModel: $selectedModel,
+                        isPresented: $isModelPickerPresented
+                    )
                 }
-                .buttonStyle(.plain)
-                .menuStyle(.borderlessButton)
-                .help("Model")
 
                 Spacer()
 
@@ -231,6 +226,7 @@ struct PromptPanelView: View {
         guard !isSending && !message.isEmpty else { return }
 
         prompt = ""
+        isPromptEmpty = true
         inFlightPrompt = message
         responseText = ""
         errorText = ""
@@ -264,6 +260,7 @@ struct PromptPanelView: View {
                 await MainActor.run {
                     activeTask = nil
                     prompt = message
+                    isPromptEmpty = false
                     inFlightPrompt = ""
                     errorText = error.localizedDescription
                     isSending = false
@@ -281,6 +278,7 @@ struct PromptPanelView: View {
     private func finishCancellation() {
         activeTask = nil
         prompt = inFlightPrompt
+        isPromptEmpty = prompt.isEmpty
         inFlightPrompt = ""
         responseText = "キャンセルしました。"
         errorText = ""
@@ -289,8 +287,100 @@ struct PromptPanelView: View {
     }
 }
 
+struct ModelPickerButton: View {
+    let selectedModel: GemmaModel
+    @Binding var isPresented: Bool
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            HStack(spacing: 4) {
+                Text(selectedModel.displayName)
+                    .font(.system(size: 13, weight: .semibold))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill((isHovered || isPresented) ? Color.white.opacity(0.13) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Model size")
+    }
+}
+
+struct ModelPickerPopover: View {
+    let models: [GemmaModel]
+    @Binding var selectedModel: GemmaModel
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(models) { model in
+                Button {
+                    selectedModel = model
+                    isPresented = false
+                } label: {
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(model.displayName)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            Text(subtitle(for: model))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        if selectedModel == model {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 6)
+        .frame(width: 240)
+        .background(.regularMaterial)
+        .preferredColorScheme(.dark)
+    }
+
+    private func subtitle(for model: GemmaModel) -> String {
+        switch model.id {
+        case "gemma4":
+            return "デフォルト"
+        case "gemma4:2b":
+            return "軽量・高速"
+        case "gemma4:12b":
+            return "標準"
+        case "gemma4:26b":
+            return "高品質・重め"
+        case "gemma4:31b":
+            return "最大サイズ"
+        default:
+            return model.id
+        }
+    }
+}
+
 struct GrowingPromptTextView: NSViewRepresentable {
     @Binding var text: String
+    @Binding var isEmpty: Bool
     @Binding var height: CGFloat
 
     let focusRequest: Int
@@ -337,6 +427,7 @@ struct GrowingPromptTextView: NSViewRepresentable {
             textView.string = text
         }
 
+        context.coordinator.syncEmptyState()
         context.coordinator.maxHeight = maxHeight
         context.coordinator.recalculateHeight()
 
@@ -349,11 +440,12 @@ struct GrowingPromptTextView: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, height: $height, maxHeight: maxHeight)
+        Coordinator(text: $text, isEmpty: $isEmpty, height: $height, maxHeight: maxHeight)
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         @Binding private var text: String
+        @Binding private var isEmpty: Bool
         @Binding private var height: CGFloat
 
         weak var textView: NSTextView?
@@ -361,8 +453,9 @@ struct GrowingPromptTextView: NSViewRepresentable {
         var maxHeight: CGFloat
         var lastFocusRequest = -1
 
-        init(text: Binding<String>, height: Binding<CGFloat>, maxHeight: CGFloat) {
+        init(text: Binding<String>, isEmpty: Binding<Bool>, height: Binding<CGFloat>, maxHeight: CGFloat) {
             _text = text
+            _isEmpty = isEmpty
             _height = height
             self.maxHeight = maxHeight
         }
@@ -370,7 +463,18 @@ struct GrowingPromptTextView: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView else { return }
             text = textView.string
+            syncEmptyState()
             recalculateHeight()
+        }
+
+        func syncEmptyState() {
+            guard let textView else { return }
+            let newValue = textView.string.isEmpty
+            if isEmpty != newValue {
+                DispatchQueue.main.async {
+                    self.isEmpty = newValue
+                }
+            }
         }
 
         func recalculateHeight() {
