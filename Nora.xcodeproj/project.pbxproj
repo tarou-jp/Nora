@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A03333332FEC26EB0018D4DA /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = A02222222FEC26EB0018D4DA /* MarkdownUI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		B08E512F2FEC26EB0018D4DA /* Nora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A03333332FEC26EB0018D4DA /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = Nora;
 			packageProductDependencies = (
+				A02222222FEC26EB0018D4DA /* MarkdownUI */,
 			);
 			productName = Nora;
 			productReference = B08E512F2FEC26EB0018D4DA /* Nora.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = B08E51262FEC26EB0018D4DA;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A01111112FEC26EB0018D4DA /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B08E51302FEC26EB0018D4DA /* Products */;
 			projectDirPath = "";
@@ -248,7 +257,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = N8HNTC477Q;
+				DEVELOPMENT_TEAM = 742C3PP2W2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -302,7 +311,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = N8HNTC477Q;
+				DEVELOPMENT_TEAM = 742C3PP2W2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -371,6 +380,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A01111112FEC26EB0018D4DA /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A02222222FEC26EB0018D4DA /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A01111112FEC26EB0018D4DA /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B08E51272FEC26EB0018D4DA /* Project object */;
 }

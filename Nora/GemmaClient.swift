@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 struct GemmaModel: Identifiable, Hashable {
@@ -5,16 +6,46 @@ struct GemmaModel: Identifiable, Hashable {
     let displayName: String
 }
 
-struct GemmaClient {
-    private let endpoint = URL(string: "http://127.0.0.1:11434/api/generate")!
+struct OllamaChatMessage: Encodable {
+    let role: String
+    let content: String
+    var images: [String]?
+}
 
-    func generate(prompt: String, model: GemmaModel) async throws -> String {
-        var request = URLRequest(url: endpoint)
+extension NSImage {
+    func jpegBase64(quality: CGFloat = 0.85) -> String? {
+        guard let cgImage = cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
+        guard let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: quality])
+        else { return nil }
+        return jpeg.base64EncodedString()
+    }
+}
+
+struct GemmaClient {
+    private let chatEndpoint = URL(string: "http://127.0.0.1:11434/api/chat")!
+    private let tagsEndpoint = URL(string: "http://127.0.0.1:11434/api/tags")!
+
+    func fetchModels() async throws -> [GemmaModel] {
+        let (data, _) = try await URLSession.shared.data(from: tagsEndpoint)
+        let decoded = try JSONDecoder().decode(TagsResponse.self, from: data)
+        return decoded.models.map { GemmaModel(id: $0.model, displayName: Self.shortName($0.name)) }
+    }
+
+    private static func shortName(_ name: String) -> String {
+        let parts = name.split(separator: ":", maxSplits: 1)
+        guard parts.count == 2 else { return name }
+        let tag = String(parts[1])
+        return tag == "latest" ? String(parts[0]) : tag
+    }
+
+    func chat(messages: [OllamaChatMessage], model: GemmaModel) async throws -> String {
+        var request = URLRequest(url: chatEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 120
         request.httpBody = try JSONEncoder().encode(
-            GenerateRequest(model: model.id, prompt: prompt, stream: false)
+            ChatRequest(model: model.id, messages: messages, stream: false)
         )
 
         do {
@@ -29,8 +60,8 @@ struct GemmaClient {
                 throw GemmaClientError.requestFailed(statusCode: httpResponse.statusCode, message: message)
             }
 
-            let decoded = try JSONDecoder().decode(GenerateResponse.self, from: data)
-            return decoded.response.trimmingCharacters(in: .whitespacesAndNewlines)
+            let decoded = try JSONDecoder().decode(ChatResponse.self, from: data)
+            return decoded.message.content.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch let error as URLError {
             switch error.code {
             case .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .notConnectedToInternet, .timedOut:
@@ -42,14 +73,27 @@ struct GemmaClient {
     }
 }
 
-private struct GenerateRequest: Encodable {
+private struct TagsResponse: Decodable {
+    let models: [TagsModel]
+}
+
+private struct TagsModel: Decodable {
+    let name: String
     let model: String
-    let prompt: String
+}
+
+private struct ChatRequest: Encodable {
+    let model: String
+    let messages: [OllamaChatMessage]
     let stream: Bool
 }
 
-private struct GenerateResponse: Decodable {
-    let response: String
+private struct ChatResponse: Decodable {
+    let message: ChatResponseMessage
+}
+
+private struct ChatResponseMessage: Decodable {
+    let content: String
 }
 
 enum GemmaClientError: LocalizedError {
